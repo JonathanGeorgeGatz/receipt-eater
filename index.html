@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Receipt Eater</title>
+<style>
+:root{--paper:#F3F2EC;--panel:#FFFFFF;--ink:#20262B;--dim:#6C7680;--line:#DBD8CC;
+ --acc:#1F7A55;--accsoft:#1F7A5514;--warn:#B3362B;--ok:#1F7A55;--brass:#9C7A3C;
+ --mono:"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;
+ --sans:-apple-system,"Segoe UI",Inter,Helvetica,Arial,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font:16px/1.5 var(--sans);padding:28px 20px 80px}
+.wrap{max-width:1080px;margin:0 auto}
+h1{font-size:30px;letter-spacing:-.01em}
+h1 small{display:block;font-size:15px;color:var(--dim);font-weight:400;margin-top:4px}
+.privacy{font-size:13px;color:var(--dim);border:1px solid var(--line);border-radius:8px;padding:6px 12px;display:inline-block;margin:10px 0 22px}
+.inrow{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.box h3{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:8px}
+#drop{border:2px dashed var(--acc);border-radius:12px;background:var(--accsoft);padding:26px 18px;text-align:center;color:var(--ink);cursor:pointer}
+#drop.on{background:#1F7A5526}
+#drop b{color:var(--acc)}
+#drop .sub{font-size:13px;color:var(--dim);margin-top:6px}
+#fileIn{display:none}
+textarea{width:100%;height:120px;border:1px solid var(--line);border-radius:8px;padding:10px;font:12.5px/1.45 var(--mono);resize:vertical;background:#FCFBF7;color:var(--ink)}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:18px}
+button{font:600 15px var(--sans);border:0;border-radius:9px;padding:11px 20px;cursor:pointer}
+#go{background:var(--acc);color:#fff}
+#sample{background:var(--accsoft);color:var(--acc)}
+#csv{background:var(--brass);color:#fff}
+.set{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;align-items:flex-start}
+.set label{font-size:13px;color:var(--dim);display:flex;flex-direction:column;gap:4px}
+.set input,.set select{width:120px;border:1px solid var(--line);border-radius:7px;padding:7px 9px;font:14px var(--sans);background:#fff;color:var(--ink)}
+.set textarea{width:360px;height:92px}
+#status{font-size:14px;color:var(--dim);margin-top:10px;min-height:20px}
+.hide{display:none !important}
+#report{margin-top:30px}
+.banner{border-radius:12px;padding:14px 18px;font-weight:700;font-size:17px;margin-bottom:18px}
+.banner.bad{background:var(--warn);color:#fff}
+#tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:16px 0 22px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.tile .k{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);font-weight:700}
+.tile .v{font-size:27px;font-weight:800;margin-top:6px;font-variant-numeric:tabular-nums}
+.tile .s{font-size:12.5px;color:var(--dim);margin-top:4px}
+.tile.spend .v{color:var(--warn)} .tile.ok .v{color:var(--ok)}
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);text-align:left;padding:5px 8px;border-bottom:2px solid var(--line)}
+td{padding:6.5px 8px;border-top:1px solid #ECE9DF;font-variant-numeric:tabular-nums}
+td.n,th.n{text-align:right}
+.sec{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:18px}
+.sec h3{font-size:15px;margin-bottom:10px}
+.sec h3 .note{font-weight:400;color:var(--dim);font-size:13px;margin-left:8px}
+.grid2{display:grid;grid-template-columns:1.35fr 1fr;gap:18px}
+.dup{background:#B3362B12;border:1px solid #B3362B44;border-radius:10px;padding:10px 14px;margin:8px 0;font-size:14.5px}
+.dup b{color:var(--warn)}
+.merged{background:#1F7A5512;border:1px solid #1F7A5544;border-radius:10px;padding:10px 14px;margin:8px 0;font-size:14.5px}
+.merged b{color:var(--acc)}
+#refusedT td{font-size:13.5px}
+#recon{font:13.5px/1.7 var(--mono);color:var(--ink)}
+#recon .ok{color:var(--ok);font-weight:700} #recon .bad{color:var(--warn);font-weight:700}
+.neg{color:var(--warn);font-weight:700}
+.cat-unc{color:var(--warn);font-weight:800}
+footer{margin-top:34px;font-size:12.5px;color:var(--dim)}
+@media (max-width:900px){.inrow,.grid2{grid-template-columns:1fr}#tiles{grid-template-columns:1fr 1fr}}
+</style></head><body><div class="wrap">
+<h1>The Receipt Eater<small>Point it at a folder of receipts — scans, e-receipts, invoice emails — and get back a clean expense log your bookkeeper will believe.</small></h1>
+<div class="privacy">Everything runs in this file, in your browser. Nothing is uploaded anywhere.</div>
+<div class="inrow">
+  <div class="box"><h3>1 · Feed it receipts</h3>
+    <div id="drop"><b>Drop your receipt files here</b> — or click to pick them<br>
+      <span class="sub">Text files: phone scans (share as text), e-receipts, invoice emails. Select the whole folder's contents at once.</span></div>
+    <input id="fileIn" type="file" multiple>
+    <div id="loaded" style="font-size:13px;color:var(--dim);margin-top:8px"></div>
+  </div>
+  <div class="box"><h3>2 · Or paste receipts (separate with a line of dashes)</h3>
+    <textarea id="pasteIn" placeholder="HARBOR FUEL STOP #12&#10;DATE 10/06/26&#10;TOTAL $42.17&#10;-----&#10;(next receipt)"></textarea></div>
+</div>
+<div class="set">
+  <label>Dates like 9/4/26 read as<select id="s_order"><option value="MDY">month / day / year</option><option value="DMY">day / month / year</option></select></label>
+  <label>Double-charge window, days<input id="s_dup" type="number" min="0" max="14" value="3"></label>
+  <label>Log month<select id="s_month"><option value="all">everything</option></select></label>
+  <label>Vendor → category map (edit me)<textarea id="s_cat"></textarea></label>
+</div>
+<div class="row">
+  <button id="go">Eat the receipts</button>
+  <button id="sample">Load the sample folder</button>
+  <span id="status"></span>
+</div>
+
+<div id="report" class="hide">
+  <div id="banner" class="banner bad hide">DO NOT TRUST THIS LOG</div>
+  <div id="tiles">
+    <div class="tile"><div class="k">Receipts eaten</div><div class="v" id="t_n"></div><div class="s" id="t_n_s"></div></div>
+    <div class="tile spend"><div class="k">Spend logged</div><div class="v" id="t_total"></div><div class="s" id="t_total_s"></div></div>
+    <div class="tile"><div class="k">Tax on receipts</div><div class="v" id="t_tax"></div><div class="s">sales tax your receipts itemize</div></div>
+    <div class="tile ok"><div class="k">Refunds</div><div class="v" id="t_ref"></div><div class="s">money that came back</div></div>
+  </div>
+  <div class="grid2">
+    <div class="sec"><h3>The expense log <span class="note" id="logNote"></span></h3>
+      <table><thead><tr><th>Date</th><th>Vendor</th><th>Category</th><th class="n">Amount</th></tr></thead><tbody id="logT"></tbody></table>
+      <div class="row" style="margin-top:12px"><button id="csv">Download the log as CSV</button>
+      <span style="font-size:13px;color:var(--dim)">ready for the bookkeeper or any accounting import</span></div>
+    </div>
+    <div>
+      <div class="sec"><h3>Where it went</h3>
+        <table><thead><tr><th>Category</th><th class="n">Total</th></tr></thead><tbody id="catT"></tbody></table>
+      </div>
+      <div class="sec" id="venSec"><h3>Top vendors</h3>
+        <table><thead><tr><th>Vendor</th><th class="n">Total</th></tr></thead><tbody id="venT"></tbody></table>
+      </div>
+    </div>
+  </div>
+  <div class="sec" id="dupSec"><h3>Duplicates</h3><div id="mergedList"></div><div id="flagList"></div></div>
+  <div class="sec"><h3>Files this log refused <span class="note">with the reason, so you can fix or re-scan them</span></h3>
+    <table id="refusedT"><thead><tr><th>File</th><th>Why</th></tr></thead><tbody id="refT"></tbody></table>
+    <div id="refNone" class="hide" style="font-size:14px;color:var(--dim)">None — every file was readable.</div>
+  </div>
+  <div class="sec"><h3>Does this log trust itself?</h3><div id="recon"></div></div>
+</div>
+<footer>The Receipt Eater · a single-file tool from <b>Build It With AI</b>, Episode 13. The sample folder (Saltgrass Coffee Roasters) is fictional.</footer>
+</div>
+<script>
+/* The Receipt Eater — final engine (shipped).
+   window.RE.analyze(files, settings) -> report object.
+   files: [{name, text}] — one entry per receipt file (or pasted block).
+   Pure function, no network, no DOM. All money sums run in integer cents. */
+(function (g) {
+  "use strict";
+  const DEF = {
+    dateOrder: "MDY",          // how to read 9/4/26: MDY or DMY
+    dupDays: 3,                // same vendor+amount within N days = possible duplicate
+    month: "all",              // "all" or "YYYY-MM"
+    catmap: [
+      "bean=Inventory — beans", "coffee=Inventory — beans", "roast=Inventory — beans",
+      "packaging=Packaging", "cup=Packaging",
+      "fuel=Vehicle", "gas=Vehicle",
+      "hardware=Repairs & maintenance", "espresso parts=Repairs & maintenance", "restaurant supply=Equipment & smallwares",
+      "grocery=Inventory — dairy & goods", "market & main=Inventory — dairy & goods",
+      "office=Office & admin", "software=Software & subscriptions", "internet=Utilities",
+      "diner=Meals", "cafe=Meals",
+      "farmers market=Selling fees", "booth=Selling fees", "parking=Vehicle",
+    ].join("\n"),
+  };
+  const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+  function cents(x) { return Math.round(x * 100); }
+  function money(c) { const x = c / 100; return (x < 0 ? "-$" : "$") + Math.abs(x).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function validYMD(y, m, d) {
+    if (y < 2000 || y > 2099 || m < 1 || m > 12 || d < 1 || d > 31) return null;
+    const t = Date.UTC(y, m - 1, d);
+    const dd = new Date(t);
+    if (dd.getUTCFullYear() !== y || dd.getUTCMonth() !== m - 1 || dd.getUTCDate() !== d) return null;
+    return t;
+  }
+  // find a date in the text: ISO, M/D/Y(YYYY|YY), "Oct 3, 2026", "03 Oct 2026".
+  // Lines that are about a CARD (exp/expiry/valid thru) never supply the date.
+  function findDate(lines, order) {
+    const cands = [];
+    for (let i = 0; i < lines.length; i++) {
+      const ln = lines[i];
+      if (/exp|expiry|valid\s*thru|remit|ship/i.test(ln)) continue;   // not the receipt's date
+      let m;
+      if ((m = ln.match(/(\d{4})-(\d{2})-(\d{2})/))) {
+        const t = validYMD(+m[1], +m[2], +m[3]);
+        cands.push({ i, t, raw: m[0], bad: t === null });
+        continue;
+      }
+      if ((m = ln.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/))) {
+        let a = +m[1], b = +m[2], y = +m[3]; if (y < 100) y += 2000;
+        const mo = order === "DMY" ? b : a, da = order === "DMY" ? a : b;
+        const t = validYMD(y, mo, da);
+        cands.push({ i, t, raw: m[0], bad: t === null });
+        continue;
+      }
+      if ((m = ln.match(/([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})/))) {
+        const mo = MONTHS[m[1].slice(0, 3).toLowerCase()];
+        if (mo) { const t = validYMD(+m[3], mo, +m[2]); cands.push({ i, t, raw: m[0], bad: t === null }); continue; }
+      }
+      if ((m = ln.match(/(\d{1,2})\s+([A-Za-z]{3,9})\.?\s+(\d{4})/))) {
+        const mo = MONTHS[m[2].slice(0, 3).toLowerCase()];
+        if (mo) { const t = validYMD(+m[3], mo, +m[1]); cands.push({ i, t, raw: m[0], bad: t === null }); continue; }
+      }
+    }
+    if (!cands.length) return { t: null, reason: "no date anywhere on it" };
+    const good = cands.filter(c => !c.bad);
+    if (!good.length) return { t: null, reason: "its date isn't a real calendar day: \"" + cands[0].raw + "\"" };
+    return { t: good[0].t, reason: null };
+  }
+  // labeled money lines
+  function amounts(lines) {
+    const out = { total: null, subtotal: null, tax: null, tip: null, refund: false, labeled: [] };
+    const moneyRe = /-?\$?\s*(-?\d{1,3}(?:,\d{3})*(?:\.\d{2}))\b/;
+    for (const ln of lines) {
+      const low = ln.toLowerCase();
+      const m = ln.match(moneyRe);
+      if (!m) continue;
+      const neg = /-\s*\$?\d|\$\s*-\d|refund/i.test(ln) && /refund|return|credit memo/i.test(low) ? -1 : (ln.includes("-$") || /\s-\d/.test(ln) ? -1 : 1);
+      const v = Math.round(parseFloat(m[1].replace(/,/g, "")) * 100) * (neg < 0 ? -1 : 1);
+      if (/cash|tend|change|credit limit|you saved|save[sd]?\b|balance forward|points|reward/i.test(low)) continue;
+      if (/refund/.test(low)) { out.refund = true; out.total = -Math.abs(v); out.labeled.push(["refund", v]); continue; }
+      if (/sub\s*-?total/.test(low)) { out.subtotal = v; out.labeled.push(["subtotal", v]); continue; }
+      if (/\btax\b/.test(low)) { out.tax = (out.tax || 0) + v; out.labeled.push(["tax", v]); continue; }
+      if (/tip|gratuity/.test(low)) { out.tip = v; out.labeled.push(["tip", v]); continue; }
+      if (/amount due|grand total|order total|^total\b|\btotal\b/.test(low) && !/fuel total/.test(low)) {
+        out.total = v; out.labeled.push(["total", v]); continue;
+      }
+      if (/^fee:/.test(low) || /booth fee/.test(low)) { out.total = v; out.labeled.push(["fee", v]); continue; }
+      if (/amount charged/.test(low)) { out.total = v; out.labeled.push(["charged", v]); continue; }
+    }
+    return out;
+  }
+  function vendorOf(lines) {
+    // an email's Subject line names the vendor after the dash; otherwise the first
+    // readable line that isn't a date or an invoice number is the vendor
+    for (const ln of lines) {
+      const m = ln.match(/^Subject:.*[—-]\s*(.+?)\s*$/i);
+      if (m) return m[1].trim();
+    }
+    for (const ln of lines) {
+      const t = ln.trim();
+      if (!t) continue;
+      if (/^(from|subject|to):/i.test(t)) continue;
+      let v = t.replace(/\s+[—-]\s+(order confirmation|payment received).*$/i, "")
+               .replace(/—.*$/, "").trim();
+      if (/^\d+[\/-]/.test(v) || /^(date|invoice \d|order #)/i.test(v)) continue;
+      return v.split(/\s{3,}/)[0].trim();
+    }
+    return "(unreadable)";
+  }
+  const venKey = v => v.toLowerCase().replace(/[^a-z0-9]/g, "");
+  function titleCase(s) {
+    if (s !== s.toUpperCase()) return s;
+    return s.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase()).replace(/\b(\d+[a-z]*)\b/gi, m => m.toUpperCase());
+  }
+  function catFor(vendor, map) {
+    const low = vendor.toLowerCase();
+    for (const line of map.split("\n")) {
+      const i = line.indexOf("=");
+      if (i < 1) continue;
+      const k = line.slice(0, i).trim().toLowerCase(), v = line.slice(i + 1).trim();
+      if (k && low.includes(k)) return v;
+    }
+    return "Uncategorized";
+  }
+  function fmtD(t) { return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }); }
+
+  function analyze(files, settings) {
+    const S = Object.assign({}, DEF, settings || {});
+    const refused = [];
+    const rows = [];
+    for (const f of files) {
+      const lines = (f.text || "").split(/\r?\n/);
+      if (!lines.join("").trim()) { refused.push({ file: f.name, reason: "empty file" }); continue; }
+      const dt_ = findDate(lines, S.dateOrder);
+      if (dt_.t === null) { refused.push({ file: f.name, reason: dt_.reason }); continue; }
+      const a = amounts(lines);
+      if (a.total === null) { refused.push({ file: f.name, reason: "no line on it reads as a total" }); continue; }
+      // internal arithmetic: when subtotal is printed, subtotal + tax + tip must equal total (1 cent)
+      if (a.subtotal !== null && !a.refund) {
+        const sum = a.subtotal + (a.tax || 0) + (a.tip || 0);
+        if (Math.abs(sum - a.total) > 1) {
+          refused.push({ file: f.name, reason: "its own math fails: " + money(a.subtotal) + (a.tax ? " + " + money(a.tax) + " tax" : "") + (a.tip ? " + " + money(a.tip) + " tip" : "") + " = " + money(sum) + ", but it prints " + money(a.total) });
+          continue;
+        }
+      }
+      const vendor = titleCase(vendorOf(lines));
+      rows.push({ file: f.name, t: dt_.t, date: fmtD(dt_.t), iso: new Date(dt_.t).toISOString().slice(0, 10),
+                  vendor, total: a.total, tax: a.tax || 0, tip: a.tip || 0, refund: a.refund });
+    }
+    // duplicates, two kinds:
+    //  MERGED  — same vendor + same amount + SAME DAY: the same receipt captured twice
+    //            (an email and a phone scan of the printed copy). Counted once.
+    //  FLAGGED — same vendor + same amount within dupDays but on different days: a
+    //            possible double charge. KEPT in the totals, raised for a phone call.
+    rows.sort((x, y) => x.t - y.t || (x.file < y.file ? -1 : 1));
+    const DAY = 86400000;
+    const dups = [];      // merged pairs
+    const flags = [];     // possible double charges (kept)
+    const seen = [];
+    for (const r of rows) {
+      const same = seen.find(s => venKey(s.vendor) === venKey(r.vendor) && s.total === r.total && s.t === r.t);
+      if (same) { r.dup = true; r.dupOf = same.file; dups.push({ a: same, b: r }); continue; }
+      const near = seen.find(s => venKey(s.vendor) === venKey(r.vendor) && s.total === r.total
+        && Math.abs(r.t - s.t) <= S.dupDays * DAY);
+      if (near) flags.push({ a: near, b: r, days: Math.round(Math.abs(r.t - near.t) / DAY) });
+      seen.push(r);
+    }
+    // month filter
+    const inScope = r => S.month === "all" || r.iso.slice(0, 7) === S.month;
+    const logRows = rows.filter(r => !r.dup && inScope(r));
+    const dupRows = rows.filter(r => r.dup && inScope(r));
+    logRows.forEach(r => { r.category = catFor(r.vendor, S.catmap); });
+    // totals (integer cents)
+    let totalC = 0, taxC = 0, refundC = 0;
+    const cats = new Map();
+    const uncRows = [];
+    for (const r of logRows) {
+      totalC += r.total; taxC += r.tax;
+      if (r.total < 0) refundC += r.total;
+      cats.set(r.category, (cats.get(r.category) || 0) + r.total);
+      if (r.category === "Uncategorized") uncRows.push(r);
+    }
+    const categories = [...cats.entries()].map(([name, c]) => ({ name, total: c })).sort((a, b) => b.total - a.total);
+    // vendor totals
+    const vens = new Map();
+    for (const r of logRows) vens.set(r.vendor, (vens.get(r.vendor) || 0) + r.total);
+    const vendors = [...vens.entries()].map(([name, c]) => ({ name, total: c })).sort((a, b) => b.total - a.total);
+    // reconciliation
+    const filesIn = files.length;
+    const filesTie = logRows.length + dupRows.length + refused.length + rows.filter(r => !inScope(r)).length === filesIn;
+    const catSumC = categories.reduce((a, c) => a + c.total, 0);
+    const catTie = catSumC === totalC;
+    const refusedShare = refused.length / Math.max(1, filesIn);
+    const trusted = filesTie && catTie && refusedShare <= 0.05;
+    return {
+      settings: S,
+      rows: logRows, dups, flags: flags.filter(f => inScope(f.b)), refused, outOfScope: rows.filter(r => !inScope(r)).length,
+      money: { total: totalC, tax: taxC, refunds: refundC },
+      categories, vendors, uncategorized: uncRows,
+      recon: { filesIn, logged: logRows.length, duplicates: dupRows.length, refused: refused.length,
+               filesTie, catSum: catSumC, catTie, refusedShare: Math.round(refusedShare * 1000) / 10, trusted },
+      money$: { total: money(totalC), tax: money(taxC) },
+    };
+  }
+  g.RE = { analyze, money, DEF };
+})(typeof window !== "undefined" ? window : (typeof module !== "undefined" ? module.exports : this));
+
+</script>
+<script id="sampledata" type="application/json">{"files": [{"name": "booth_0822.txt", "text": "SALTGRASS FARMERS MARKET ASSN \u2014 BOOTH FEE\nDate: 2026-08-22\nFee: $45.00\nPAID \u2014 keep this stub"}, {"name": "booth_0829.txt", "text": "SALTGRASS FARMERS MARKET ASSN \u2014 BOOTH FEE\nDate: 2026-08-29\nFee: $45.00\nPAID \u2014 keep this stub"}, {"name": "booth_0905.txt", "text": "SALTGRASS FARMERS MARKET ASSN \u2014 BOOTH FEE\nDate: 2026-09-05\nFee: $45.00\nPAID \u2014 keep this stub"}, {"name": "booth_0919.txt", "text": "SALTGRASS FARMERS MARKET ASSN \u2014 BOOTH FEE\nDate: 2026-09-19\nFee: $45.00\nPAID \u2014 keep this stub"}, {"name": "booth_1003.txt", "text": "SALTGRASS FARMERS MARKET ASSN \u2014 BOOTH FEE\nDate: 2026-10-03\nFee: $45.00\nPAID \u2014 keep this stub"}, {"name": "email_lattice_0820.txt", "text": "Lattice Point Software \u2014 payment received\nDate: 2026-08-20\nAmount charged: $29.00\nCard on file: VISA ****4417  EXP 11/27\nThis is your receipt. No action needed."}, {"name": "email_lattice_0920.txt", "text": "Lattice Point Software \u2014 payment received\nDate: 2026-09-20\nAmount charged: $29.00\nCard on file: VISA ****4417  EXP 11/27\nThis is your receipt. No action needed."}, {"name": "email_pier_0828.txt", "text": "Pier 9 Internet Co \u2014 payment received\nDate: 2026-08-28\nAmount charged: $89.95\nCard on file: VISA ****4417  EXP 11/27\nThis is your receipt. No action needed."}, {"name": "email_pier_0928.txt", "text": "Pier 9 Internet Co \u2014 payment received\nDate: 2026-09-28\nAmount charged: $89.95\nCard on file: VISA ****4417  EXP 11/27\nThis is your receipt. No action needed."}, {"name": "invoice_2189.txt", "text": "From: billing@rainshadowgreencoffee.example.com\nSubject: Invoice 2189 \u2014 Rainshadow Green Coffee\n\nINVOICE 2189\nInvoice date: Aug 18, 2026\nTerms: Net 15\n\n  Colombia Huila 70kg bag  x3  @ $235.56  =  $706.68\n  Freight & handling: $17.79\n\nAMOUNT DUE: $724.47\nPlease remit by Sep 2, 2026."}, {"name": "invoice_2190.txt", "text": "From: billing@cascadebeanimporters.example.com\nSubject: Invoice 2190 \u2014 Cascade Bean Importers\n\nINVOICE 2190\nInvoice date: Aug 25, 2026\nTerms: Net 15\n\n  Colombia Huila 70kg bag  x3  @ $192.06  =  $576.18\n  Ethiopia Guji 60kg bag  x1  @ $273.47  =  $273.47\n  Freight & handling: $31.07\n\nAMOUNT DUE: $880.72\nPlease remit by Sep 9, 2026."}, {"name": "invoice_2197.txt", "text": "From: billing@cascadebeanimporters.example.com\nSubject: Invoice 2197 \u2014 Cascade Bean Importers\n\nINVOICE 2197\nInvoice date: Sep 1, 2026\nTerms: Net 15\n\n  Colombia Huila 70kg bag  x2  @ $239.99  =  $479.98\n  Freight & handling: $28.73\n\nAMOUNT DUE: $508.71\nPlease remit by Sep 16, 2026."}, {"name": "invoice_2201.txt", "text": "From: billing@rainshadowgreencoffee.example.com\nSubject: Invoice 2201 \u2014 Rainshadow Green Coffee\n\nINVOICE 2201\nInvoice date: Sep 8, 2026\nTerms: Net 15\n\n  Colombia Huila 70kg bag  x2  @ $238.63  =  $477.26\n  Ethiopia Guji 60kg bag  x1  @ $211.93  =  $211.93\n  Freight & handling: $9.36\n\nAMOUNT DUE: $698.55\nPlease remit by Sep 23, 2026."}, {"name": "invoice_2209.txt", "text": "From: billing@cascadebeanimporters.example.com\nSubject: Invoice 2209 \u2014 Cascade Bean Importers\n\nINVOICE 2209\nInvoice date: Sep 15, 2026\nTerms: Net 15\n\n  Colombia Huila 70kg bag  x1  @ $200.91  =  $200.91\n  Ethiopia Guji 60kg bag  x1  @ $214.38  =  $214.38\n  Freight & handling: $8.28\n\nAMOUNT DUE: $423.57\nPlease remit by Sep 30, 2026."}, {"name": "invoice_2210.txt", "text": "From: billing@rainshadowgreencoffee.example.com\nSubject: Invoice 2210 \u2014 Rainshadow Green Coffee\n\nINVOICE 2210\nInvoice date: Sep 22, 2026\nTerms: Net 15\n\n  Colombia Huila 70kg bag  x3  @ $215.52  =  $646.56\n  Freight & handling: $23.37\n\nAMOUNT DUE: $669.93\nPlease remit by Oct 7, 2026."}, {"name": "invoice_2213.txt", "text": "From: billing@rainshadowgreencoffee.example.com\nSubject: Invoice 2213 \u2014 Rainshadow Green Coffee\n\nINVOICE 2213\nInvoice date: Sep 29, 2026\nTerms: Net 15\n\n  Colombia Huila 70kg bag  x3  @ $264.16  =  $792.48\n  Freight & handling: $14.88\n\nAMOUNT DUE: $807.36\nPlease remit by Oct 14, 2026."}, {"name": "invoice_2214.txt", "text": "From: billing@cascadebeanimporters.example.com\nSubject: Invoice 2214 \u2014 Cascade Bean Importers\n\nINVOICE 2214\nInvoice date: Sep 22, 2026\nTerms: Net 15\n\n  Colombia Huila 70kg bag  x2  @ $189.40  =  $378.80\n  Freight & handling: $34.00\n\nAMOUNT DUE: $412.80\nPlease remit by Oct 7, 2026."}, {"name": "invoice_2221.txt", "text": "From: billing@cascadebeanimporters.example.com\nSubject: Invoice 2221 \u2014 Cascade Bean Importers\n\nINVOICE 2221\nInvoice date: Oct 6, 2026\nTerms: Net 15\n\n  Colombia Huila 70kg bag  x2  @ $227.57  =  $455.14\n  Ethiopia Guji 60kg bag  x1  @ $252.87  =  $252.87\n  Freight & handling: $33.23\n\nAMOUNT DUE: $741.24\nPlease remit by Oct 21, 2026."}, {"name": "invoice_88102.txt", "text": "From: billing@meridianespressoparts.example.com\nSubject: Invoice 88102 \u2014 Meridian Espresso Parts\n\nINVOICE 88102\nInvoice date: Sep 16, 2026\nTerms: Net 30\n\n  Group head gasket kit  x2  @ $18.75  =  $37.50\n  Steam valve assembly  x1  @ $96.00  =  $96.00\n  Freight & handling: $35.10\n\nAMOUNT DUE: $168.60\nYour account standing is excellent. CREDIT LIMIT: $5,000.00\nPlease remit by Oct 1, 2026."}, {"name": "order_7767.txt", "text": "Harborline Packaging \u2014 order confirmation\nOrder #7767\nPlaced Aug 20, 2026\n\n  12oz hot cups, case of 1000 (qty 1) \u2014 $64.90\n  Dome lids, case of 1000 (qty 1) \u2014 $38.25\n  Subtotal: $103.15\n  Tax: $8.46\n  Order total: $111.61\nYour order will ship in 2-3 business days."}, {"name": "order_7772.txt", "text": "Harborline Packaging \u2014 order confirmation\nOrder #7772\nPlaced Aug 31, 2026\n\n  12oz hot cups, case of 1000 (qty 2) \u2014 $129.80\n  Subtotal: $129.80\n  Tax: $10.64\n  Order total: $140.44\nYour order will ship in 2-3 business days."}, {"name": "order_7786.txt", "text": "Harborline Packaging \u2014 order confirmation\nOrder #7786\nPlaced Sep 8, 2026\n\n  12oz hot cups, case of 1000 (qty 1) \u2014 $64.90\n  Dome lids, case of 1000 (qty 1) \u2014 $38.25\n  Subtotal: $103.15\n  Tax: $8.46\n  Order total: $111.61\nYour order will ship in 2-3 business days."}, {"name": "order_7810.txt", "text": "Harborline Packaging \u2014 order confirmation\nOrder #7810\nPlaced Sep 19, 2026\n\n  12oz hot cups, case of 1000 (qty 2) \u2014 $129.80\n  Subtotal: $129.80\n  Tax: $10.64\n  Order total: $140.44\nYour order will ship in 2-3 business days."}, {"name": "order_7846.txt", "text": "Harborline Packaging \u2014 order confirmation\nOrder #7846\nPlaced Oct 1, 2026\n\n  12oz hot cups, case of 1000 (qty 1) \u2014 $64.90\n  Subtotal: $64.90\n  Tax: $5.32\n  Order total: $70.22\nYour order will ship in 2-3 business days."}, {"name": "order_7879.txt", "text": "Harborline Packaging \u2014 order confirmation\nOrder #7879\nPlaced Oct 9, 2026\n\n  12oz hot cups, case of 1000 (qty 2) \u2014 $129.80\n  Dome lids, case of 1000 (qty 1) \u2014 $38.25\n  Subtotal: $168.05\n  Tax: $13.78\n  Order total: $181.83\nYour order will ship in 2-3 business days."}, {"name": "scan_0825_01.txt", "text": "MARKET & MAIN GROCERY\nCOR MARKET/MAIN\n08/25/26  16:10\n------------------------------\nWhole milk gal      6 @ 4.89\n                         29.34\n------------------------------\nSUBTOTAL                 29.34\nSALES TAX 8.2%            2.41\nTOTAL                    31.75\nCASH                     40.00\nCHANGE                    8.25\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0828_02.txt", "text": "TIDEWATER HARDWARE\n414 DOCK ST\n08/28/26  10:19\n------------------------------\nHose clamp 2in      2 @ 3.49\n                          6.98\nFood-safe silicone        \n                         11.99\n------------------------------\nSUBTOTAL                 18.97\nSALES TAX 8.2%            1.56\nTOTAL                    20.53\nVISA ****4061  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0830_03.txt", "text": "MARKET & MAIN GROCERY\nCOR MARKET/MAIN\n08/30/26  13:45\n------------------------------\nWhole milk gal      6 @ 4.89\n                         29.34\n------------------------------\nSUBTOTAL                 29.34\nSALES TAX 8.2%            2.41\nTOTAL                    31.75\nVISA ****9780  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0831_04.txt", "text": "TIDEWATER HARDWARE\n414 DOCK ST\n08/31/26  15:39\n------------------------------\nHose clamp 2in            \n                          3.49\n------------------------------\nSUBTOTAL                  3.49\nSALES TAX 8.2%            0.29\nTOTAL                     3.78\nVISA ****4852  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0901_blurry.txt", "text": "TIDEWAT_R H@RDW~RE\n4I4 DOCK sT\n0WI2026\nTH#NK Y0U\n"}, {"name": "scan_0902_05.txt", "text": "MARKET & MAIN GROCERY\nCOR MARKET/MAIN\n09/02/26  12:21\n------------------------------\nWhole milk gal      6 @ 4.89\n                         29.34\n------------------------------\nSUBTOTAL                 29.34\nSALES TAX 8.2%            2.41\nTOTAL                    31.75\nVISA ****1948  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0903_06.txt", "text": "PENINSULA OFFICE SUPPLY\n17 FERRY LANDING\n09/03/26  15:13\n------------------------------\nThermal rolls 50ct  2 @ 34.99\n                         69.98\nLabel tape          3 @ 9.49\n                         28.47\n------------------------------\nSUBTOTAL                 98.45\nSALES TAX 8.2%            8.07\nTOTAL                   106.52\nVISA ****8525  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0905_07.txt", "text": "SALT CITY RESTAURANT SUPPLY\n88 CANNERY ROW\n09/05/26  18:20\n------------------------------\nPitcher 20oz steel  3 @ 14.50\n                         43.50\nThermometer probe         \n                         21.99\n------------------------------\nSUBTOTAL                 65.49\nSALES TAX 8.2%            5.37\nTOTAL                    70.86\nVISA ****7622  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0907_08.txt", "text": "TIDEWATER HARDWARE\n414 DOCK ST\n09/07/26  12:23\n------------------------------\nHose clamp 2in            \n                          3.49\n------------------------------\nSUBTOTAL                  3.49\nSALES TAX 8.2%            0.29\nTOTAL                     3.78\nVISA ****4062  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0909_09.txt", "text": "PENINSULA OFFICE SUPPLY\n17 FERRY LANDING\n09/09/26  13:55\n------------------------------\nThermal rolls 50ct        \n                         34.99\nLabel tape                \n                          9.49\n------------------------------\nSUBTOTAL                 44.48\nSALES TAX 8.2%            3.65\nTOTAL                    48.13\nVISA ****2020  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0912_10.txt", "text": "SALT CITY RESTAURANT SUPPLY\n88 CANNERY ROW\n09/12/26  10:22\n------------------------------\nPitcher 20oz steel        \n                         14.50\nThermometer probe         \n                         21.99\n------------------------------\nSUBTOTAL                 36.49\nSALES TAX 8.2%            2.99\nTOTAL                    39.48\nYOU SAVED TODAY          11.07\nVISA ****7309  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0913_11.txt", "text": "TIDEWATER HARDWARE\n414 DOCK ST\n09/13/26  14:36\n------------------------------\nHose clamp 2in      2 @ 3.49\n                          6.98\nFood-safe silicone        \n                         11.99\n------------------------------\nSUBTOTAL                 18.97\nSALES TAX 8.2%            1.56\nTOTAL                    20.53\nYOU SAVED TODAY          11.01\nCASH                     40.00\nCHANGE                   19.47\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0914_12.txt", "text": "MARKET & MAIN GROCERY\nCOR MARKET/MAIN\n09/14/26  10:28\n------------------------------\nWhole milk gal      6 @ 4.89\n                         29.34\nOat milk 32oz       7 @ 3.99\n                         27.93\n------------------------------\nSUBTOTAL                 57.27\nSALES TAX 8.2%            4.70\nTOTAL                    61.97\nVISA ****2194  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0918_vanwash.txt", "text": "BLUEWATER WASH & DETAIL\nBAY 2 \u2014 VAN EXTERIOR + MATS\n09/18/26  08:41\nWASH PACKAGE                22.00\nSUBTOTAL                    22.00\nSALES TAX 8.2%               1.80\nTOTAL                       23.80\nVISA ****4417  APPROVED\n"}, {"name": "scan_0920_13.txt", "text": "MARKET & MAIN GROCERY\nCOR MARKET/MAIN\n09/20/26  12:48\n------------------------------\nWhole milk gal      5 @ 4.89\n                         24.45\n------------------------------\nSUBTOTAL                 24.45\nSALES TAX 8.2%            2.00\nTOTAL                    26.45\nVISA ****3781  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0921_14.txt", "text": "SALT CITY RESTAURANT SUPPLY\n88 CANNERY ROW\n09/21/26  11:58\n------------------------------\nPitcher 20oz steel        \n                         14.50\nThermometer probe         \n                         21.99\n------------------------------\nSUBTOTAL                 36.49\nSALES TAX 8.2%            2.99\nTOTAL                    39.48\nYOU SAVED TODAY           8.29\nCASH                     40.00\nCHANGE                    0.52\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0922_bean_invoice.txt", "text": "CASCADE BEAN IMPORTERS\nINVOICE 2214\nDATE 09/22/26\nCOLOMBIA HUILA 70KG X2   378.80\nFREIGHT                   34.00\nAMOUNT DUE               412.80\nRECEIVED BY: M.\n"}, {"name": "scan_0924_15.txt", "text": "SALT CITY RESTAURANT SUPPLY\n88 CANNERY ROW\n09/24/26  09:44\n------------------------------\nPitcher 20oz steel  2 @ 14.50\n                         29.00\nThermometer probe         \n                         21.99\n------------------------------\nSUBTOTAL                 50.99\nSALES TAX 8.2%            4.18\nTOTAL                    55.17\nVISA ****2110  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0924_refund.txt", "text": "MERIDIAN ESPRESSO PARTS\nRETURN / REFUND RECEIPT\nDATE 09/24/2026\nRETURNED: PRESSURE GAUGE 0-4 BAR\nREFUND TO VISA ****4417\nREFUND TOTAL  -$38.50\n"}, {"name": "scan_0925_16.txt", "text": "SALT CITY RESTAURANT SUPPLY\n88 CANNERY ROW\n09/25/26  13:16\n------------------------------\nPitcher 20oz steel        \n                         14.50\n------------------------------\nSUBTOTAL                 14.50\nSALES TAX 8.2%            1.19\nTOTAL                    15.69\nVISA ****2402  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0926_17.txt", "text": "TIDEWATER HARDWARE\n414 DOCK ST\n09/26/26  14:49\n------------------------------\nHose clamp 2in      3 @ 3.49\n                         10.47\nFood-safe silicone  2 @ 11.99\n                         23.98\nShop towels         3 @ 4.29\n                         12.87\n------------------------------\nSUBTOTAL                 47.32\nSALES TAX 8.2%            3.88\nTOTAL                    51.20\nVISA ****7715  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0926_badmath.txt", "text": "SALT CITY RESTAURANT SUPPLY\n88 CANNERY ROW\n09/26/26  14:02\nPITCHER 20OZ STEEL          29.00\nSUBTOTAL                    29.00\nSALES TAX 8.2%               2.38\nTOTAL                       34.78\nVISA ****2210  APPROVED\n"}, {"name": "scan_0929_18.txt", "text": "SALT CITY RESTAURANT SUPPLY\n88 CANNERY ROW\n09/29/26  14:26\n------------------------------\nPitcher 20oz steel  2 @ 14.50\n                         29.00\nThermometer probe         \n                         21.99\n------------------------------\nSUBTOTAL                 50.99\nSALES TAX 8.2%            4.18\nTOTAL                    55.17\nVISA ****7986  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0930_19.txt", "text": "SALT CITY RESTAURANT SUPPLY\n88 CANNERY ROW\n09/30/26  15:33\n------------------------------\nPitcher 20oz steel  2 @ 14.50\n                         29.00\n------------------------------\nSUBTOTAL                 29.00\nSALES TAX 8.2%            2.38\nTOTAL                    31.38\nYOU SAVED TODAY           8.82\nVISA ****1162  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_0931_baddate.txt", "text": "PENINSULA OFFICE SUPPLY\n17 FERRY LANDING\n2026-09-31  10:11\nTHERMAL ROLLS 50CT          34.99\nSUBTOTAL                    34.99\nSALES TAX 8.2%               2.87\nTOTAL                       37.86\nCASH                        40.00\nCHANGE                       2.14\n"}, {"name": "scan_1002_20.txt", "text": "PENINSULA OFFICE SUPPLY\n17 FERRY LANDING\n10/02/26  14:12\n------------------------------\nThermal rolls 50ct        \n                         34.99\nLabel tape          2 @ 9.49\n                         18.98\n------------------------------\nSUBTOTAL                 53.97\nSALES TAX 8.2%            4.43\nTOTAL                    58.40\nYOU SAVED TODAY           3.70\nVISA ****4458  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_1003_21.txt", "text": "PENINSULA OFFICE SUPPLY\n17 FERRY LANDING\n10/03/26  09:25\n------------------------------\nThermal rolls 50ct  2 @ 34.99\n                         69.98\n------------------------------\nSUBTOTAL                 69.98\nSALES TAX 8.2%            5.74\nTOTAL                    75.72\nVISA ****1889  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_1004_22.txt", "text": "PENINSULA OFFICE SUPPLY\n17 FERRY LANDING\n10/04/26  11:19\n------------------------------\nThermal rolls 50ct  2 @ 34.99\n                         69.98\nLabel tape          3 @ 9.49\n                         28.47\n------------------------------\nSUBTOTAL                 98.45\nSALES TAX 8.2%            8.07\nTOTAL                   106.52\nCASH                    120.00\nCHANGE                   13.48\nTHANK YOU FOR SHOPPING"}, {"name": "scan_1006_23.txt", "text": "TIDEWATER HARDWARE\n414 DOCK ST\n10/06/26  17:10\n------------------------------\nHose clamp 2in      2 @ 3.49\n                          6.98\n------------------------------\nSUBTOTAL                  6.98\nSALES TAX 8.2%            0.57\nTOTAL                     7.55\nCASH                     20.00\nCHANGE                   12.45\nTHANK YOU FOR SHOPPING"}, {"name": "scan_1007_24.txt", "text": "TIDEWATER HARDWARE\n414 DOCK ST\n10/07/26  14:34\n------------------------------\nHose clamp 2in            \n                          3.49\n------------------------------\nSUBTOTAL                  3.49\nSALES TAX 8.2%            0.29\nTOTAL                     3.78\nCASH                     20.00\nCHANGE                   16.22\nTHANK YOU FOR SHOPPING"}, {"name": "scan_1008_25.txt", "text": "TIDEWATER HARDWARE\n414 DOCK ST\n10/08/26  12:16\n------------------------------\nHose clamp 2in            \n                          3.49\nFood-safe silicone        \n                         11.99\n------------------------------\nSUBTOTAL                 15.48\nSALES TAX 8.2%            1.27\nTOTAL                    16.75\nYOU SAVED TODAY           3.52\nVISA ****7773  APPROVED\nTHANK YOU FOR SHOPPING"}, {"name": "scan_1010_26.txt", "text": "SALT CITY RESTAURANT SUPPLY\n88 CANNERY ROW\n10/10/26  16:20\n------------------------------\nPitcher 20oz steel        \n                         14.50\nThermometer probe         \n                         21.99\n------------------------------\nSUBTOTAL                 36.49\nSALES TAX 8.2%            2.99\nTOTAL                    39.48\nYOU SAVED TODAY           5.06\nCASH                     40.00\nCHANGE                    0.52\nTHANK YOU FOR SHOPPING"}, {"name": "scan_fuel_0824.txt", "text": "HARBOR FUEL STOP #12\nPUMP 04   UNLEADED\nDATE 08/24/26\nGALLONS   15.046\nPRICE/GAL  $3.980\nFUEL TOTAL $59.88\nTOTAL $59.88\nMASTERCARD ****2399"}, {"name": "scan_fuel_0827.txt", "text": "HARBOR FUEL STOP #12\nPUMP 04   UNLEADED\nDATE 08/27/26\nGALLONS   8.013\nPRICE/GAL  $4.045\nFUEL TOTAL $32.41\nTOTAL $32.41\nMASTERCARD ****8695"}, {"name": "scan_fuel_0831.txt", "text": "HARBOR FUEL STOP #12\nPUMP 04   UNLEADED\nDATE 08/31/26\nGALLONS   12.539\nPRICE/GAL  $3.619\nFUEL TOTAL $45.38\nTOTAL $45.38\nCASH TEND $50.00\nCHANGE $4.62"}, {"name": "scan_fuel_0903.txt", "text": "HARBOR FUEL STOP #12\nPUMP 04   UNLEADED\nDATE 09/03/26\nGALLONS   10.536\nPRICE/GAL  $3.512\nFUEL TOTAL $37.00\nTOTAL $37.00\nMASTERCARD ****2490"}, {"name": "scan_fuel_0907.txt", "text": "HARBOR FUEL STOP #12\nPUMP 04   UNLEADED\nDATE 09/07/26\nGALLONS   16.867\nPRICE/GAL  $4.096\nFUEL TOTAL $69.09\nTOTAL $69.09\nMASTERCARD ****6573"}, {"name": "scan_fuel_0910.txt", "text": "HARBOR FUEL STOP #12\nPUMP 04   UNLEADED\nDATE 09/10/26\nGALLONS   13.557\nPRICE/GAL  $3.565\nFUEL TOTAL $48.33\nTOTAL $48.33\nCASH TEND $50.00\nCHANGE $1.67"}, {"name": "scan_fuel_0914.txt", "text": "HARBOR FUEL STOP #12\nPUMP 04   UNLEADED\nDATE 09/14/26\nGALLONS   8.275\nPRICE/GAL  $4.075\nFUEL TOTAL $33.72\nTOTAL $33.72\nMASTERCARD ****7483"}, {"name": "scan_fuel_0917.txt", "text": "HARBOR FUEL STOP #12\nPUMP 04   UNLEADED\nDATE 09/17/26\nGALLONS   8.547\nPRICE/GAL  $3.610\nFUEL TOTAL $30.85\nTOTAL $30.85\nMASTERCARD ****6357"}, {"name": "scan_fuel_0921.txt", "text": "HARBOR FUEL STOP #12\nPUMP 04   UNLEADED\nDATE 09/21/26\nGALLONS   14.764\nPRICE/GAL  $3.950\nFUEL TOTAL $58.32\nTOTAL $58.32\nCASH TEND $60.00\nCHANGE $1.68"}, {"name": "scan_fuel_0924.txt", "text": "HARBOR FUEL STOP #12\nPUMP 04   UNLEADED\nDATE 09/24/26\nGALLONS   8.668\nPRICE/GAL  $3.730\nFUEL TOTAL $32.33\nTOTAL $32.33\nMASTERCARD ****2699"}, {"name": "scan_fuel_0928.txt", "text": "HARBOR FUEL STOP #12\nPUMP 04   UNLEADED\nDATE 09/28/26\nGALLONS   12.313\nPRICE/GAL  $3.824\nFUEL TOTAL $47.08\nTOTAL $47.08\nMASTERCARD ****8028"}, {"name": "scan_fuel_1001.txt", "text": "HARBOR FUEL STOP #12\nPUMP 04   UNLEADED\nDATE 10/01/26\nGALLONS   10.542\nPRICE/GAL  $3.788\nFUEL TOTAL $39.93\nTOTAL $39.93\nCASH TEND $40.00\nCHANGE $0.07"}, {"name": "scan_fuel_1005.txt", "text": "HARBOR FUEL STOP #12\nPUMP 04   UNLEADED\nDATE 10/05/26\nGALLONS   10.865\nPRICE/GAL  $3.695\nFUEL TOTAL $40.15\nTOTAL $40.15\nMASTERCARD ****6383"}, {"name": "scan_fuel_1008.txt", "text": "HARBOR FUEL STOP #12\nPUMP 04   UNLEADED\nDATE 10/08/26\nGALLONS   15.018\nPRICE/GAL  $3.567\nFUEL TOTAL $53.57\nTOTAL $53.57\nMASTERCARD ****8364"}, {"name": "scan_meal_0826.txt", "text": "THE NOON WHISTLE DINER\nAug 26, 2026  11:35 AM\nSERVER: KIT\nFood & beverage  $51.79\nTax  $4.25\nTip  $9.32\nTOTAL  $65.36\nVISA ****1928"}, {"name": "scan_meal_0912.txt", "text": "THE NOON WHISTLE DINER\nSep 12, 2026  13:33 AM\nSERVER: MEL\nFood & beverage  $60.68\nTax  $4.98\nTip  $10.92\nTOTAL  $76.58\nVISA ****6773"}, {"name": "scan_meal_0930.txt", "text": "THE NOON WHISTLE DINER\nSep 30, 2026  11:11 AM\nSERVER: KIT\nFood & beverage  $60.46\nTax  $4.96\nTip  $10.88\nTOTAL  $76.30\nVISA ****9948"}, {"name": "scan_meal_1007.txt", "text": "THE NOON WHISTLE DINER\nOct 7, 2026  12:39 AM\nSERVER: KIT\nFood & beverage  $34.20\nTax  $2.80\nTip  $7.52\nTOTAL  $44.52\nVISA ****4505"}]}</script>
+<script>
+const $ = id => document.getElementById(id);
+const money = c => { const x = c/100; return (x<0?"-$":"$")+Math.abs(x).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}); };
+let FILES = [];
+$("s_cat").value = window.RE.DEF.catmap;
+function settings(){
+  return { dateOrder: $("s_order").value, dupDays: +$("s_dup").value, month: $("s_month").value, catmap: $("s_cat").value };
+}
+function gather(){
+  const out = FILES.slice();
+  const pasted = $("pasteIn").value;
+  if (pasted.trim()){
+    pasted.split(/\n-{5,}\n/).forEach((txt,i)=>{ if (txt.trim()) out.push({name:"pasted-"+(i+1), text:txt}); });
+  }
+  return out;
+}
+let LAST = null;
+function monthOptions(rows){
+  const sel = $("s_month"); const cur = sel.value;
+  const months = [...new Set(rows.map(r=>r.iso.slice(0,7)))].sort();
+  sel.innerHTML = '<option value="all">everything</option>' + months.map(m=>`<option value="${m}">${m}</option>`).join("");
+  sel.value = months.includes(cur) || cur==="all" ? cur : "all";
+}
+function run(){
+  const files = gather();
+  if (!files.length){ $("status").textContent = "Drop some receipt files first (or load the sample folder)."; return; }
+  const r = window.RE.analyze(files, settings());
+  LAST = r; window.__result = r;
+  monthOptions(r.rows.concat());
+  $("status").textContent = "";
+  $("report").classList.remove("hide");
+  $("banner").classList.toggle("hide", r.recon.trusted);
+  if (!r.recon.trusted){
+    const why = !r.recon.filesTie ? "files went missing between the folder and this log" :
+      !r.recon.catTie ? "the category totals do not add up to the log" :
+      r.recon.refused + " files (" + r.recon.refusedShare + "%) could not be read — the log may be incomplete";
+    $("banner").textContent = "DO NOT TRUST THIS LOG — " + why + ". Fix the files and run it again.";
+  }
+  $("t_n").textContent = r.rows.length.toLocaleString();
+  $("t_n_s").textContent = r.recon.duplicates + " duplicate" + (r.recon.duplicates===1?"":"s") + " merged · " + r.recon.refused + " refused";
+  $("t_total").textContent = money(r.money.total);
+  $("t_total_s").textContent = r.settings.month === "all" ? "every readable receipt" : "receipts dated " + r.settings.month;
+  $("t_tax").textContent = money(r.money.tax);
+  $("t_ref").textContent = money(r.money.refunds);
+  $("logNote").textContent = r.rows.length + " rows, oldest first";
+  $("logT").innerHTML = r.rows.map(x=>`<tr><td>${x.iso}</td><td>${x.vendor}</td><td>${x.category==="Uncategorized"?'<span class="cat-unc">Uncategorized</span>':x.category}</td><td class="n${x.total<0?" neg":""}">${money(x.total)}</td></tr>`).join("");
+  $("catT").innerHTML = r.categories.map(c=>`<tr><td>${c.name==="Uncategorized"?'<span class="cat-unc">Uncategorized</span>':c.name}</td><td class="n">${money(c.total)}</td></tr>`).join("");
+  $("venT").innerHTML = r.vendors.slice(0,8).map(v=>`<tr><td>${v.name}</td><td class="n">${money(v.total)}</td></tr>`).join("");
+  $("dupSec").classList.toggle("hide", !r.dups.length && !r.flags.length);
+  $("mergedList").innerHTML = r.dups.map(d=>`<div class="merged"><b>Same receipt twice</b> — ${d.a.vendor}, ${d.a.date}, ${money(d.a.total)}: <code>${d.a.file}</code> and <code>${d.b.file}</code>. Counted once.</div>`).join("");
+  $("flagList").innerHTML = r.flags.map(f=>`<div class="dup"><b>Possible double charge</b> — ${f.a.vendor}: ${money(f.a.total)} on ${f.a.date} and again on ${f.b.date} (${f.days} day${f.days>1?"s":""} apart). Both kept in the log — worth a look before you reconcile.</div>`).join("");
+  $("refT").innerHTML = r.refused.map(x=>`<tr><td>${x.file}</td><td>${x.reason}</td></tr>`).join("");
+  $("refNone").classList.toggle("hide", !!r.refused.length);
+  $("refusedT").classList.toggle("hide", !r.refused.length);
+  const R = r.recon;
+  const tick = ok => ok ? "<span class='ok'>TIES ✓</span>" : "<span class='bad'>DOES NOT TIE ✗</span>";
+  const scope = r.outOfScope ? ` + ${r.outOfScope} outside the month` : "";
+  $("recon").innerHTML =
+    `files:      ${R.logged} logged + ${R.duplicates} merged + ${R.refused} refused${scope} = ${R.filesIn} files in   ${tick(R.filesTie)}<br>` +
+    `categories: ${money(R.catSum)} across ${r.categories.length} categories = ${money(r.money.total)} logged   ${tick(R.catTie)}`;
+  window.__done = true;
+}
+$("go").onclick = ()=>{ window.__done=false; $("status").textContent="Eating…"; setTimeout(run,30); };
+$("sample").onclick = ()=>{
+  const d = JSON.parse($("sampledata").textContent);
+  FILES = d.files;
+  $("loaded").textContent = FILES.length + " files loaded — sample folder: Saltgrass Coffee Roasters (fictional).";
+  window.__done=false; $("status").textContent="Eating…"; setTimeout(run,30);
+};
+$("csv").onclick = ()=>{
+  if (!LAST) return;
+  const esc = s => '"'+String(s).replace(/"/g,'""')+'"';
+  const lines = ["date,vendor,category,amount,tax,source_file"];
+  for (const r of LAST.rows) lines.push([r.iso,esc(r.vendor),esc(r.category),(r.total/100).toFixed(2),(r.tax/100).toFixed(2),esc(r.file)].join(","));
+  const blob = new Blob([lines.join("\n")],{type:"text/csv"});
+  const a = document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="expense_log.csv"; a.click();
+};
+const drop = $("drop");
+drop.onclick = ()=>$("fileIn").click();
+drop.ondragover = e=>{ e.preventDefault(); drop.classList.add("on"); };
+drop.ondragleave = ()=>drop.classList.remove("on");
+drop.ondrop = async e=>{
+  e.preventDefault(); drop.classList.remove("on");
+  const fl = [...e.dataTransfer.files];
+  FILES = await Promise.all(fl.map(f=>f.text().then(t=>({name:f.name, text:t}))));
+  $("loaded").textContent = FILES.length + " files loaded.";
+};
+$("fileIn").onchange = async e=>{
+  const fl = [...e.target.files];
+  FILES = await Promise.all(fl.map(f=>f.text().then(t=>({name:f.name, text:t}))));
+  $("loaded").textContent = FILES.length + " files loaded.";
+};
+["s_order","s_dup","s_month"].forEach(id=>$(id).addEventListener("change",()=>{ if(LAST) run(); }));
+$("s_cat").addEventListener("change",()=>{ if(LAST) run(); });
+window.__loaded = true;
+</script></body></html>
